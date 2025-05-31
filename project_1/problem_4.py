@@ -141,4 +141,5 @@ def solve_problem_4():
 
 # Optional direct execution
 if __name__ == "__main__":
+    os.makedirs("output", exist_ok=True)
     solve_problem_4()

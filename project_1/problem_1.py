@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
 # Constants
 L = 0.050  # length of the rod
@@ -113,10 +114,11 @@ def solve_problem_1():
     plt.grid(True)
     plt.legend()
     plt.tight_layout()
-    plt.savefig("output/temperature_profile_iterations.png")
+    plt.savefig("output/problem_1_temperature_profile_iterations.png")
     plt.show()
 
 
 # Example usage
 if __name__ == "__main__":
+    os.makedirs("output", exist_ok=True)
     solve_problem_1()

@@ -1,4 +1,5 @@
 import numpy as np
+import os
 
 # Physical constants
 L = 0.05  # rod length in meters
@@ -119,4 +120,5 @@ def solve_problem_2():
 
 # Example usage
 if __name__ == "__main__":
+    os.makedirs("output", exist_ok=True)
     solve_problem_2()
