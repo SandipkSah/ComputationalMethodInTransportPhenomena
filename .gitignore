@@ -9,7 +9,7 @@ instance/*
 .webassets-cache
 .env
 .env*
-__pycache__
+/*/__pycache__/*
 __pycache__
 __pycache__/
 ### Flask.Python Stack ###

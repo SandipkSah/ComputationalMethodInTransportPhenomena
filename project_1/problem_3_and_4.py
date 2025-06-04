@@ -40,7 +40,7 @@ def compute_source(T):
     return S
 
 # --- Transient simulation using implicit Euler method ---
-def transient_simulation(N=12, dt=0.1, max_steps=100000, center_tol=0.1, window=100):
+def transient_simulation(N=12, dt=0.1, max_steps=100000, center_tol=1, window=10000):
     dx = L / N
     V = A * dx
     T = np.ones(N) * T0
@@ -98,7 +98,7 @@ def transient_simulation(N=12, dt=0.1, max_steps=100000, center_tol=0.1, window=
     return np.array(times), np.array(history), T
 
 # --- Solve and plot ---
-def solve_problem_3():
+def solve_problem_3_and_4():
     os.makedirs("output", exist_ok=True)
     times, temps, final_T = transient_simulation()
 
@@ -121,4 +121,4 @@ def solve_problem_3():
 # --- Run the simulation ---
 if __name__ == "__main__":
     os.makedirs("output", exist_ok=True)
-    solve_problem_3()
+    solve_problem_3_and_4()

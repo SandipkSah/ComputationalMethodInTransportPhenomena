@@ -118,7 +118,6 @@ def solve_problem_2():
     plt.grid(True)
     plt.legend()
     plt.tight_layout()
-    plt.savefig("output/problem_2_temperature_profiles.png")
     plt.show()
 
     # === Report Summary Output ===

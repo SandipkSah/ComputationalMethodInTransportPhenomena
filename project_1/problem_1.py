@@ -2,123 +2,124 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
-# Constants
-L = 0.050  # length of the rod
-N = 6  # number of control volumes
+# --- Problem Data ---
+L = 0.05
+N = 5
 dx = L / N
-A = 1.0  # cross-sectional area
-V = dx * A
+T_inf = 500
+h_L = 50
+h_R = 5
+k0 = 2.0
+k1 = 0.002
+a = 1e5
+b = 2.0
 
-T_inf = 500  # surrounding fluid temperature
-T_init = 400.0  # initial guess
+# --- Auxiliary Functions ---
+def k(T):
+    return k0 + k1 * (T - 400)
 
-# Heat source parameters
-a = 1e5  # W/m^3
-b = 2e-3  # W/m^3/K^2
+def S(T):
+    if T < 400:
+        return 1e5
+    elif T > 600:
+        return 0
+    else:
+        return a - b * (T - 400)**2
 
-# Thermal conductivity parameters
-k0 = 2.0  # W/mK
-k1 = 0.002  # W/mK^2
-
-# Heat transfer coefficients
-hL = 50  # W/m2K
-hR = 5   # W/m2K
-
-# TDMA solver
-def TDMA(aW, aP, aE, b):
-    n = len(b)
+# --- TDMA Solver ---
+def TDMA(A, B, C, D):
+    n = len(D)
     P = np.zeros(n)
     Q = np.zeros(n)
-    T = np.zeros(n)
+    X = np.zeros(n)
 
-    # Forward sweep
-    P[0] = aE[0] / aP[0]
-    Q[0] = b[0] / aP[0]
+    P[0] = C[0] / B[0]
+    Q[0] = D[0] / B[0]
     for i in range(1, n):
-        denom = aP[i] - aW[i] * P[i - 1]
-        P[i] = aE[i] / denom if i < n - 1 else 0
-        Q[i] = (b[i] + aW[i] * Q[i - 1]) / denom
+        denom = B[i] - A[i] * P[i - 1]
+        P[i] = C[i] / denom if i < n - 1 else 0
+        Q[i] = (D[i] - A[i] * Q[i - 1]) / denom
 
-    # Back substitution
-    T[-1] = Q[-1]
-    for i in range(n - 2, -1, -1):
-        T[i] = P[i] * T[i + 1] + Q[i]
+    X[-1] = Q[-1]
+    for i in reversed(range(n - 1)):
+        X[i] = Q[i] - P[i] * X[i + 1]
 
-    return T
-
+    return X
 
 def solve_problem_1():
-    # Initialization
-    # T = np.ones(N) * T_init
-    T = np.array([470, 460, 450, 440, 430, 420 ])
-    x = np.linspace(dx / 2, L - dx / 2, N)
+    nodes = N + 1
+    T = np.full(nodes, 400.0)
+    max_iter = 100
+    tol = 1e-3
+    saved_iterations = [0, 1]  # Save iterations 1 and 2 (0-based)
 
-    # Plotting setup
-    plt.figure(figsize=(8, 6))
+    iteration_data = {}
 
-    # Iterate exactly 3 times
-    for iteration in range(1, 4):
-        kvals = k0 + k1 * (T - 400)
-        S = a - b * (T - 400)**2
-        SP = -2 * b * (T - 400)
-        SC = S - SP * T
+    for it in range(max_iter):
+        T_old = T.copy()
+        A = np.zeros(nodes)
+        B = np.zeros(nodes)
+        C = np.zeros(nodes)
+        D = np.zeros(nodes)
 
-        aW = np.zeros(N)
-        aE = np.zeros(N)
-        aP = np.zeros(N)
-        b_vec = np.zeros(N)
+        for i in range(1, nodes - 1):
+            k_e = 0.5 * (k(T[i]) + k(T[i + 1]))
+            k_w = 0.5 * (k(T[i]) + k(T[i - 1]))
+            A[i] = k_w / dx**2
+            C[i] = k_e / dx**2
+            B[i] = -A[i] - C[i]
+            D[i] = -S(T[i])
 
-        # Coefficients assembly
-        for i in range(N):
-            if i > 0:
-                kW = 0.5 * (kvals[i] + kvals[i - 1])
-                aW[i] = kW * A / dx
-            if i < N - 1:
-                kE = 0.5 * (kvals[i] + kvals[i + 1])
-                aE[i] = kE * A / dx
+        k_L_val = k(T[0])
+        C[0] = k_L_val / dx
+        B[0] = -(k_L_val / dx + h_L)
+        D[0] = -h_L * T_inf
 
-        for i in range(N):
-            if i == 0:
-                aP[i] = aE[i] + hL * A - SP[i] * V
-                b_vec[i] = hL * A * T_inf + SC[i] * V
-            elif i == N - 1:
-                aP[i] = aW[i] + hR * A - SP[i] * V
-                b_vec[i] = hR * A * T_inf + SC[i] * V
-            else:
-                aP[i] = aW[i] + aE[i] - SP[i] * V
-                b_vec[i] = SC[i] * V
-        # print(f"\nIteration {iteration} - b_vector:")
-        # print(f"\nIteration {iteration} - aE: {aE}")
-        # print(f"\nIteration {iteration} - aP: {aP}")
-        # print(f"\nIteration {iteration} - aW: {aW}")
-        
+        k_R_val = k(T[-1])
+        A[-1] = k_R_val / dx
+        B[-1] = -(k_R_val / dx + h_R)
+        D[-1] = -h_R * T_inf
 
-        # Solve system
-        T = TDMA(aW, aP, aE, b_vec)
+        if it in saved_iterations:
+            print(f"\n--- Iteration {it + 1} ---")
+            for i in range(nodes):
+                print(f"Node {i+1}: A = {A[i]:.3e}, B = {B[i]:.3e}, C = {C[i]:.3e}, D = {D[i]:.3e}")
+            iteration_data[it + 1] = {
+                'A': A.copy(),
+                'B': B.copy(),
+                'C': C.copy(),
+                'D': D.copy(),
+                'T': T.copy()
+            }
 
-        # Print iteration result
-        print(f"\nIteration {iteration} - Temperature Profile (K):")
-        print(" ".join(format(val, ".3e") for val in T))
+        T = TDMA(A, B, C, D)
+        if np.max(np.abs(T - T_old)) < tol:
+            iteration_data['final'] = {
+                'A': A.copy(),
+                'B': B.copy(),
+                'C': C.copy(),
+                'D': D.copy(),
+                'T': T.copy()
+            }
+            break
 
-        print("SP\n=========", SP, "=========")
-        print("SC\n=========", SC, "=========")
-        print("b_vec\n=========", b_vec, "=========")
+    print("\n--- Final Temperature Profile ---")
+    for i, Ti in enumerate(T, 1):
+        print(f"Node {i}: {Ti:.3f} K")
 
-        # Plotting
-        plt.plot(x, T, marker='o', label=f"Iteration {iteration}")
-
-    # Final plot adjustments
-    plt.xlabel("Rod Length (m)")
-    plt.ylabel("Temperature (K)")
-    plt.title("Temperature Profile in 1D Porous Rod Over Iterations")
+    # Plot
+    x = np.linspace(0, L, nodes)
+    plt.plot(x, T, marker='o')
+    plt.title("Temperature Distribution in the Rod")
+    plt.xlabel("Position along the rod [m]")
+    plt.ylabel("Temperature [K]")
     plt.grid(True)
-    plt.legend()
-    plt.tight_layout()
+    os.makedirs("output", exist_ok=True)
     plt.savefig("output/problem_1_temperature_profile_iterations.png")
     plt.show()
 
+    return iteration_data
 
-# Example usage
+# Run and get iteration data
 if __name__ == "__main__":
-    os.makedirs("output", exist_ok=True)
-    solve_problem_1()
+    data = solve_problem_1()
